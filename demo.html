@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dijkstra's Algorithm: Car-9 to Base Station-2</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    canvas {
+      border: 1px solid black;
+      display: block;
+      margin: 20px auto;
+    }
+    .controls {
+      margin: 10px;
+    }
+    button {
+      padding: 10px;
+      margin: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Dijkstra's Algorithm Simulation</h1>
+  <h3>Shortest Path: Car-9 to Base Station-2</h3>
+  <canvas id="graphCanvas" width="800" height="600"></canvas>
+  <div class="controls">
+    <button onclick="startSimulation()">Start Simulation</button>
+    <button onclick="resetSimulation()">Reset</button>
+  </div>
+  <script>
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Graph Data (Nodes and Edges)
+    const graph = {
+      nodes: [
+        { id: "Base Station-1", x: 100, y: 200 },
+        { id: "Car-1", x: 200, y: 100 },
+        { id: "Car-2", x: 150, y: 300 },
+        { id: "Car-3", x: 300, y: 80 },
+        { id: "Car-4", x: 250, y: 320 },
+        { id: "Car-5", x: 400, y: 200 },
+        { id: "Car-6", x: 500, y: 80 },
+        { id: "Car-7", x: 500, y: 320 },
+        { id: "Car-8", x: 450, y: 250 },
+        { id: "Car-9", x: 600, y: 150 },
+        { id: "Base Station-2", x: 700, y: 250 },
+      ],
+      edges: [
+        ["Base Station-1", "Car-1", 6],
+        ["Base Station-1", "Car-2", 5],
+        ["Car-1", "Car-3", 3],
+        ["Car-1", "Car-4", 4],
+        ["Car-1", "Car-5", 3],
+        ["Car-2", "Car-4", 5],
+        ["Car-3", "Car-6", 5],
+        ["Car-4", "Car-5", 4],
+        ["Car-5", "Car-8", 7],
+        ["Car-5", "Car-7", 2],
+        ["Car-6", "Car-9", 4],
+        ["Car-7", "Base Station-2", 6],
+        ["Car-8", "Car-7", 1],
+        ["Car-9", "Base Station-2", 6],
+      ],
+    };
+
+    let distances = {};
+    let visited = {};
+    let unvisited = new Set();
+    let currentNode = null;
+    let path = {};
+    let stepIndex = 0;
+    let destination = "Base Station-2";
+
+    function initializeDijkstra() {
+      distances = {};
+      visited = {};
+      path = {};
+      unvisited = new Set();
+
+      graph.nodes.forEach(node => {
+        distances[node.id] = Infinity;
+        unvisited.add(node.id);
+      });
+
+      distances["Car-9"] = 0; // Start from Car-9
+      currentNode = "Car-9";
+    }
+
+    function drawGraph() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw edges
+      graph.edges.forEach(([startId, endId, weight]) => {
+        const start = getNodeById(startId);
+        const end = getNodeById(endId);
+
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.strokeStyle = visited[startId] && visited[endId] ? "red" : "black";
+        ctx.stroke();
+
+        // Draw weight
+        const midX = (start.x + end.x) / 2;
+        const midY = (start.y + end.y) / 2;
+        ctx.fillStyle = "black";
+        ctx.font = "12px Arial";
+        ctx.fillText(weight, midX, midY);
+      });
+
+      // Draw nodes
+      graph.nodes.forEach(node => {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 20, 0, 2 * Math.PI);
+        ctx.fillStyle = currentNode === node.id ? "lightgreen" : "white";
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw node ID
+        ctx.fillStyle = "black";
+        ctx.font = "12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(node.id, node.x, node.y - 25);
+
+        // Draw distance
+        ctx.fillText(
+          `Dist: ${distances[node.id] === Infinity ? "∞" : distances[node.id]}`,
+          node.x,
+          node.y + 30
+        );
+      });
+    }
+
+    function dijkstraStep() {
+      if (unvisited.size === 0 || currentNode === null) {
+        return;
+      }
+
+      const neighbors = graph.edges
+        .filter(
+          ([start, end]) =>
+            start === currentNode || end === currentNode
+        )
+        .map(([start, end, weight]) => ({
+          id: start === currentNode ? end : start,
+          weight,
+        }));
+
+      neighbors.forEach(({ id, weight }) => {
+        if (visited[id]) return;
+        const newDist = distances[currentNode] + weight;
+        if (newDist < distances[id]) {
+          distances[id] = newDist;
+          path[id] = currentNode;
+        }
+      });
+
+      visited[currentNode] = true;
+      unvisited.delete(currentNode);
+
+      const nextNode = [...unvisited].reduce((closest, node) => {
+        if (distances[node] < distances[closest]) {
+          return node;
+        }
+        return closest;
+      }, [...unvisited][0]);
+
+      currentNode = nextNode || null;
+
+      if (currentNode === destination) {
+        highlightPath();
+        currentNode = null;
+      }
+
+      drawGraph();
+    }
+
+    function highlightPath() {
+      let node = destination;
+      ctx.strokeStyle = "blue";
+      ctx.lineWidth = 3;
+
+      while (node) {
+        const prevNode = path[node];
+        if (!prevNode) break;
+
+        const start = getNodeById(prevNode);
+        const end = getNodeById(node);
+
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+
+        node = prevNode;
+      }
+    }
+
+    function startSimulation() {
+      initializeDijkstra();
+      drawGraph();
+      const interval = setInterval(() => {
+        if (!currentNode) {
+          clearInterval(interval);
+          return;
+        }
+        dijkstraStep();
+      }, 1000);
+    }
+
+    function resetSimulation() {
+      initializeDijkstra();
+      drawGraph();
+    }
+
+    function getNodeById(id) {
+      return graph.nodes.find(node => node.id === id);
+    }
+
+    // Initial Draw
+    resetSimulation();
+  </script>
+</body>
+</html>
